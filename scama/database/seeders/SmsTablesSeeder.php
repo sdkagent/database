@@ -1,0 +1,257 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class SmsTablesSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('sms_providers')->insert([
+            [
+                'name' => 'Twilio Main',
+                'provider' => 'twilio',
+                'api_key' => 'ACxxxxxxxxxx',
+                'api_secret' => 'auth_token_xxx',
+                'from_number' => '+12025551234',
+                'is_active' => true,
+                'is_default' => true,
+                'priority' => 1,
+            ],
+            [
+                'name' => 'AWS SNS Backup',
+                'provider' => 'aws_sns',
+                'api_key' => 'AKIAxxxxxxxx',
+                'api_secret' => 'aws_secret_xxx',
+                'from_number' => '+12025555678',
+                'is_active' => true,
+                'is_default' => false,
+                'priority' => 2,
+            ],
+        ]);
+
+        DB::table('sms_templates')->insert([
+            [
+                'name' => 'welcome_message',
+                'category' => 'transactional',
+                'body' => 'Welcome {{name}}! Thank you for joining {{platform}}. Start exploring now.',
+                'variables' => '["name","platform"]',
+            ],
+            [
+                'name' => 'promo_offer',
+                'category' => 'promotional',
+                'body' => 'Hey {{name}}, get {{discount}}% off on your next purchase! Offer ends {{expiry}}.',
+                'variables' => '["name","discount","expiry"]',
+            ],
+            [
+                'name' => 'order_confirmed',
+                'category' => 'transactional',
+                'body' => 'Hi {{name}}, your order #{{order_id}} has been confirmed. Total: ${{amount}}.',
+                'variables' => '["name","order_id","amount"]',
+            ],
+        ]);
+
+        DB::table('sms_campaigns')->insert([
+            [
+                'name' => 'Summer Sale 2026',
+                'message_body' => 'Limited-time summer sale! Get up to 50% off on all premium scripts. Visit {{url}} now!',
+                'sms_template_id' => null,
+                'target_type' => 'all',
+                'target_roles' => null,
+                'filter_criteria' => null,
+                'scheduled_at' => '2026-07-01 09:00:00',
+                'status' => 'draft',
+                'total_recipients' => 0,
+                'success_count' => 0,
+                'fail_count' => 0,
+                'created_by' => 1,
+            ],
+            [
+                'name' => 'Welcome New Users',
+                'message_body' => 'Welcome {{name}}! Your account is ready. Check out our getting-started guide.',
+                'sms_template_id' => null,
+                'target_type' => 'selected',
+                'target_roles' => '["admin","seller"]',
+                'filter_criteria' => '{"status": "active"}',
+                'scheduled_at' => null,
+                'status' => 'sent',
+                'total_recipients' => 4,
+                'success_count' => 4,
+                'fail_count' => 0,
+                'created_by' => 1,
+            ],
+            [
+                'name' => 'Subscription Renewal Alert',
+                'message_body' => 'Hi {{name}}, your subscription renews on {{date}}. Update payment to avoid interruption.',
+                'sms_template_id' => 2,
+                'target_type' => 'role',
+                'target_roles' => '["user","seller"]',
+                'filter_criteria' => null,
+                'scheduled_at' => '2026-06-15 10:00:00',
+                'status' => 'scheduled',
+                'total_recipients' => 0,
+                'success_count' => 0,
+                'fail_count' => 0,
+                'created_by' => 2,
+            ],
+            [
+                'name' => 'Flash Deal Alert',
+                'message_body' => 'Flash sale! {{product}} at {{price}} — only for the next 24 hours!',
+                'sms_template_id' => null,
+                'target_type' => 'all',
+                'target_roles' => null,
+                'filter_criteria' => '{"locale": "en"}',
+                'scheduled_at' => '2026-06-20 14:30:00',
+                'status' => 'draft',
+                'total_recipients' => 0,
+                'success_count' => 0,
+                'fail_count' => 0,
+                'created_by' => 3,
+            ],
+        ]);
+
+        DB::table('sms_campaign_recipients')->insert([
+            [
+                'campaign_id' => 2,
+                'user_id' => 1,
+                'phone' => '+12025551234',
+                'status' => 'delivered',
+                'provider_message_id' => 'SMxxx001',
+                'provider_id' => 1,
+                'sent_at' => '2026-05-28 10:05:00',
+                'delivered_at' => '2026-05-28 10:05:03',
+            ],
+            [
+                'campaign_id' => 2,
+                'user_id' => 2,
+                'phone' => '+12025551235',
+                'status' => 'delivered',
+                'provider_message_id' => 'SMxxx002',
+                'provider_id' => 1,
+                'sent_at' => '2026-05-28 10:05:00',
+                'delivered_at' => '2026-05-28 10:05:02',
+            ],
+            [
+                'campaign_id' => 2,
+                'user_id' => 3,
+                'phone' => '+12025551236',
+                'status' => 'sent',
+                'provider_message_id' => 'SMxxx003',
+                'provider_id' => 1,
+                'sent_at' => '2026-05-28 10:05:01',
+                'delivered_at' => null,
+            ],
+            [
+                'campaign_id' => 2,
+                'user_id' => 4,
+                'phone' => '+12025551237',
+                'status' => 'failed',
+                'provider_message_id' => 'SMxxx004',
+                'provider_id' => 2,
+                'sent_at' => '2026-05-28 10:05:02',
+                'delivered_at' => null,
+            ],
+        ]);
+
+        DB::table('sms_automations')->insert([
+            [
+                'name' => 'Welcome Series - New Registration',
+                'trigger_type' => 'event',
+                'event_name' => 'user.registered',
+                'cron_expression' => null,
+                'timezone' => null,
+                'target_type' => 'event_context',
+                'target_roles' => null,
+                'filter_criteria' => null,
+                'message_body' => null,
+                'sms_template_id' => 1,
+                'is_active' => true,
+                'total_sent' => 1247,
+                'created_by' => 1,
+            ],
+            [
+                'name' => 'Weekly Promo Digest',
+                'trigger_type' => 'schedule',
+                'event_name' => null,
+                'cron_expression' => '0 10 * * 1',
+                'timezone' => 'UTC',
+                'target_type' => 'all',
+                'target_roles' => null,
+                'filter_criteria' => null,
+                'message_body' => 'Check out our latest deals this week! {{url}}',
+                'sms_template_id' => null,
+                'is_active' => true,
+                'total_sent' => 52,
+                'created_by' => 2,
+            ],
+            [
+                'name' => 'Abandoned Cart Reminder',
+                'trigger_type' => 'event',
+                'event_name' => 'cart.abandoned',
+                'cron_expression' => null,
+                'timezone' => null,
+                'target_type' => 'event_context',
+                'target_roles' => null,
+                'filter_criteria' => '{"hours_since": 24}',
+                'message_body' => 'You left items in your cart! Complete your order now with {{discount}}% off.',
+                'sms_template_id' => 2,
+                'is_active' => true,
+                'total_sent' => 389,
+                'created_by' => 1,
+            ],
+            [
+                'name' => 'Monthly Renewal Notice',
+                'trigger_type' => 'schedule',
+                'event_name' => null,
+                'cron_expression' => '0 8 28 * *',
+                'timezone' => 'UTC',
+                'target_type' => 'role',
+                'target_roles' => '["user","seller"]',
+                'filter_criteria' => '{"status": "active"}',
+                'message_body' => 'Your subscription renews in 3 days. Keep your account active!',
+                'sms_template_id' => null,
+                'is_active' => false,
+                'total_sent' => 0,
+                'created_by' => 2,
+            ],
+        ]);
+
+        DB::table('sms_logs')->insert([
+            [
+                'provider_id' => 1,
+                'campaign_id' => 2,
+                'recipient_id' => 1,
+                'direction' => 'outgoing',
+                'request_payload' => '{"To":"+12025551234","From":"+12025551234","Body":"Welcome..."}',
+                'response_payload' => '{"sid":"SMxxx001","status":"sent"}',
+                'http_status' => 200,
+                'provider_message_id' => 'SMxxx001',
+                'error_message' => null,
+            ],
+            [
+                'provider_id' => 1,
+                'campaign_id' => 2,
+                'recipient_id' => 1,
+                'direction' => 'callback',
+                'request_payload' => null,
+                'response_payload' => '{"sid":"SMxxx001","status":"delivered"}',
+                'http_status' => 200,
+                'provider_message_id' => 'SMxxx001',
+                'error_message' => null,
+            ],
+            [
+                'provider_id' => 2,
+                'campaign_id' => 2,
+                'recipient_id' => 4,
+                'direction' => 'outgoing',
+                'request_payload' => '{"To":"+12025551237","From":"+12025551234","Body":"Welcome..."}',
+                'response_payload' => '{"sid":"SMxxx004","error":"Invalid phone"}',
+                'http_status' => 400,
+                'provider_message_id' => 'SMxxx004',
+                'error_message' => 'Invalid phone number format',
+            ],
+        ]);
+    }
+}

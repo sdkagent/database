@@ -1,0 +1,1199 @@
+SET FOREIGN_KEY_CHECKS=0;
+
+-- ==========================================
+-- AUTH & USERS
+-- ==========================================
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE `users` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `role` ENUM('admin', 'user', 'seller', 'support') NOT NULL DEFAULT 'user',
+  `name` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) UNIQUE NOT NULL,
+  `email_verified_at` TIMESTAMP NULL,
+  `password` VARCHAR(255) NULL,
+  `phone` VARCHAR(50) NULL,
+  `status` ENUM('active', 'suspended', 'pending', 'banned') DEFAULT 'active',
+  `ip_whitelist` JSON NULL,
+  `telegram_chat_id` VARCHAR(100) NULL,
+  `settings` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DROP TABLE IF EXISTS `seller_details`;
+CREATE TABLE `seller_details` (
+  `user_id` BIGINT UNSIGNED PRIMARY KEY,
+  `api_key` VARCHAR(64) UNIQUE NOT NULL,
+  `payout_method` ENUM('stripe', 'paypal', 'bkash', 'crypto') NULL,
+  `payout_address` VARCHAR(255) NULL,
+  `balance` DECIMAL(15, 4) DEFAULT 0.0000,
+  `commission_rate` DECIMAL(5, 2) DEFAULT 80.00, -- Seller keeps 80%
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `devices`;
+CREATE TABLE `devices` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `fingerprint` VARCHAR(255) NOT NULL,
+  `ip_address` VARCHAR(45) NOT NULL,
+  `user_agent` TEXT NULL,
+  `last_active_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `user_fingerprint_idx` (`user_id`, `fingerprint`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `auth_logs`;
+CREATE TABLE `auth_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NULL,
+  `type` ENUM('login', 'logout', 'failed_login', '2fa_attempt', 'magic_link', 'password_reset') NOT NULL,
+  `ip_address` VARCHAR(45) NOT NULL,
+  `device_fingerprint` VARCHAR(255) NULL,
+  `status` ENUM('success', 'failed', 'suspicious') DEFAULT 'success',
+  `details` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_user_id_type` (`user_id`, `type`)
+);
+
+-- ==========================================
+-- PRODUCTS & SUBSCRIPTIONS
+-- ==========================================
+DROP TABLE IF EXISTS `products`;
+CREATE TABLE `products` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `seller_id` BIGINT UNSIGNED NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `slug` VARCHAR(255) UNIQUE NOT NULL,
+  `description` TEXT,
+  `type` ENUM('script', 'software', 'plugin', 'saas') NOT NULL,
+  `base_price` DECIMAL(10, 2) DEFAULT 0.00,
+  `status` ENUM('draft', 'active', 'archived') DEFAULT 'draft',
+  `demo_url` VARCHAR(500) NULL,
+  `docs_url` VARCHAR(500) NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`seller_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS `subscription_plans`;
+CREATE TABLE `subscription_plans` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(50) NOT NULL, -- Starter, Pro, etc
+  `code` VARCHAR(50) UNIQUE,
+  `duration_months` INT NOT NULL,
+  `max_activations` INT NOT NULL DEFAULT 1,
+  `price_monthly` DECIMAL(10, 2) NOT NULL,
+  `price_yearly` DECIMAL(10, 2) NOT NULL,
+  `features` JSON,
+  `status` BOOLEAN DEFAULT TRUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `user_subscriptions`;
+CREATE TABLE `user_subscriptions` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `plan_id` BIGINT UNSIGNED NOT NULL,
+  `product_id` BIGINT UNSIGNED NULL,
+  `status` ENUM('active', 'cancelled', 'expired', 'past_due') DEFAULT 'active',
+  `start_date` TIMESTAMP NOT NULL,
+  `end_date` TIMESTAMP NOT NULL,
+  `trial_ends_at` TIMESTAMP NULL,
+  `stripe_subscription_id` VARCHAR(255) NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`plan_id`) REFERENCES `subscription_plans`(`id`),
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE SET NULL
+);
+
+-- ==========================================
+-- BILLING
+-- ==========================================
+DROP TABLE IF EXISTS `invoices`;
+CREATE TABLE `invoices` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `subscription_id` BIGINT UNSIGNED NULL,
+  `invoice_number` VARCHAR(50) UNIQUE,
+  `total` DECIMAL(10, 2) NOT NULL,
+  `tax` DECIMAL(10, 2) DEFAULT 0.00,
+  `status` ENUM('draft', 'open', 'paid', 'void', 'refunded') DEFAULT 'draft',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`subscription_id`) REFERENCES `user_subscriptions`(`id`) ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS `payments`;
+CREATE TABLE `payments` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `invoice_id` BIGINT UNSIGNED NOT NULL,
+  `gateway` VARCHAR(50) NOT NULL,
+  `transaction_id` VARCHAR(255) NULL,
+  `amount` DECIMAL(10, 2) NOT NULL,
+  `status` ENUM('pending', 'success', 'failed') DEFAULT 'pending',
+  `meta` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`)
+);
+
+-- ==========================================
+-- LICENSING SYSTEM
+-- ==========================================
+DROP TABLE IF EXISTS `api_clients`;
+CREATE TABLE `api_clients` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `name` VARCHAR(100),
+  `api_key` VARCHAR(64) UNIQUE NOT NULL,
+  `api_secret` VARCHAR(255),
+  `status` ENUM('active', 'suspended', 'revoked') DEFAULT 'active',
+  `rate_limit` INT DEFAULT 60, -- Requests per minute
+  `last_used_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+);
+
+DROP TABLE IF EXISTS `licenses`;
+CREATE TABLE `licenses` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `product_id` BIGINT UNSIGNED NULL,
+  `api_client_id` BIGINT UNSIGNED NULL,
+  `subscription_id` BIGINT UNSIGNED NULL,
+  `license_key` VARCHAR(64) UNIQUE NOT NULL,
+  `Api_key` VARCHAR(64) UNIQUE NOT NULL,
+  `status` ENUM('active', 'suspended', 'expired', 'revoked') DEFAULT 'active',
+  `expires_at` TIMESTAMP NULL,
+  `max_activations` INT DEFAULT 1,
+  `current_activations` INT DEFAULT 0,
+  `last_activity_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`api_client_id`) REFERENCES `api_clients`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`subscription_id`) REFERENCES `user_subscriptions`(`id`) ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS `license_activations`;
+CREATE TABLE `license_activations` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `license_id` BIGINT UNSIGNED NOT NULL,
+  `domain` VARCHAR(255),
+  `hosting_ip` VARCHAR(45),
+  `status` ENUM('active', 'inactive', 'suspicious', 'banned') DEFAULT 'active',
+  `last_verified_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `meta` JSON NULL, -- User agent, server info
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`license_id`) REFERENCES `licenses`(`id`) ON DELETE CASCADE
+);
+
+-- HARDWARE ACTIVATION LOGS
+-- ==========================================
+DROP TABLE IF EXISTS `hardware_activation_logs`;
+CREATE TABLE `hardware_activation_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `hardware_activation_id` BIGINT UNSIGNED NULL,
+  `license_id` BIGINT UNSIGNED NOT NULL,
+  `machine_id` VARCHAR(100) NOT NULL,
+  
+  -- Hardware details at time of activation
+  `hardware_snapshot` JSON, -- Complete hardware fingerprint at activation
+  `system_specs` JSON, -- OS, CPU, memory details
+  
+  -- Status & Result
+  `activation_status` ENUM('success', 'failed', 'hardware_mismatch', 'limit_exceeded', 'suspicious') NOT NULL,
+  `failure_reason` VARCHAR(255) NULL, -- Reason if failed
+  
+  -- Security Checks
+  `vm_detected` BOOLEAN DEFAULT FALSE,
+  `tamper_detected` BOOLEAN DEFAULT FALSE,
+  `compatibility_result` ENUM('compatible', 'incompatible', 'unknown') DEFAULT 'unknown',
+  
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (`license_id`) REFERENCES `licenses`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`hardware_activation_id`) REFERENCES `hardware_activations`(`id`) ON DELETE CASCADE,
+  INDEX `idx_license_machine` (`license_id`, `machine_id`),
+  INDEX `idx_created` (`created_at`)
+);
+
+-- ==========================================
+-- VERIFICATION & SECURITY
+-- ==========================================
+DROP TABLE IF EXISTS `verification_logs`;
+CREATE TABLE `verification_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `activation_id` BIGINT UNSIGNED NULL,
+  `license_key` VARCHAR(64),
+  `api_key` VARCHAR(64),
+  `ip_address` VARCHAR(45) NOT NULL,
+  `user_agent` VARCHAR(500),
+  `request_domain` VARCHAR(255),
+  `request_ip` VARCHAR(45),
+  `tier1_api` ENUM('pass', 'fail', 'na') DEFAULT 'pass',
+  `tier2_license` ENUM('pass', 'fail', 'na') DEFAULT 'pass',
+  `tier3_domain` ENUM('pass', 'fail', 'na') DEFAULT 'pass',
+  `tier4_ip` ENUM('pass', 'fail', 'na') DEFAULT 'pass',
+  `tier5_subscription` ENUM('pass', 'fail', 'na') DEFAULT 'pass',
+  `overall_result` ENUM('valid', 'invalid', 'expired', 'suspicious', 'banned'),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`activation_id`) REFERENCES `license_activations`(`id`) ON DELETE CASCADE,
+  INDEX `idx_api_key` (`api_key`),
+  INDEX `idx_license_key` (`license_key`)
+);
+
+DROP TABLE IF EXISTS `fraud_logs`;
+CREATE TABLE `fraud_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `license_id` BIGINT UNSIGNED,
+  `activation_id` BIGINT UNSIGNED,
+  `ip` VARCHAR(45),
+  `domain` VARCHAR(255),
+  `reason` VARCHAR(255) NOT NULL,
+  `severity` ENUM('low', 'medium', 'high', 'critical') DEFAULT 'low',
+  `action_taken` VARCHAR(100) DEFAULT 'logged',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`license_id`) REFERENCES `licenses`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`activation_id`) REFERENCES `license_activations`(`id`) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- SUPPORT & TICKETING AND LIVE CHAT AND BOT CONVERSATIONS
+-- ==========================================
+DROP TABLE IF EXISTS `tickets`;
+CREATE TABLE `tickets` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `subject` VARCHAR(255),
+  `status` ENUM('open', 'replied', 'closed') DEFAULT 'open',
+  `priority` ENUM('low', 'medium', 'high') DEFAULT 'medium',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
+);
+
+DROP TABLE IF EXISTS `ticket_messages`;
+CREATE TABLE `ticket_messages` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `ticket_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `message` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`ticket_id`) REFERENCES `tickets`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `live_chats`;
+CREATE TABLE `live_chats` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `message` TEXT NOT NULL,
+  `is_agent` BOOLEAN DEFAULT FALSE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `bot_conversations`;
+CREATE TABLE `bot_conversations` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `message` TEXT NOT NULL,
+  `response` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `bot_conversation_logs`;
+CREATE TABLE `bot_conversation_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `conversation_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `message` TEXT NOT NULL,
+  `response` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`conversation_id`) REFERENCES `bot_conversations`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+
+DROP TABLE IF EXISTS `ticket_messages`;
+CREATE TABLE `ticket_messages` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `ticket_id` BIGINT UNSIGNED NOT NULL,
+  `sender_id` BIGINT UNSIGNED NOT NULL,
+  `message` TEXT,
+  `attachments` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`ticket_id`) REFERENCES `tickets`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`sender_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- application update logs and changelogs and version management
+-- ==========================================
+DROP TABLE IF EXISTS `application_updates`;
+CREATE TABLE `application_updates` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `version` VARCHAR(20) NOT NULL,
+  `changelog` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `version_histories`;
+CREATE TABLE `version_histories` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `version` VARCHAR(20) NOT NULL,
+  `changelog` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- blog updates, release notes, and user guides
+-- ==========================================
+DROP TABLE IF EXISTS `blog_posts`;
+CREATE TABLE `blog_posts` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `status` ENUM('published', 'draft') DEFAULT 'draft',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `release_notes`;
+CREATE TABLE `release_notes` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `version` VARCHAR(20) NOT NULL,
+  `notes` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `user_guides`;
+CREATE TABLE `user_guides` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `status` ENUM('published', 'draft') DEFAULT 'draft',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- announcements, knowledge base, FAQs, CMS, themes, and more
+-- ==========================================
+DROP TABLE IF EXISTS `announcements`;
+CREATE TABLE `announcements` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `is_active` BOOLEAN DEFAULT TRUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `knowledge_base_articles`;
+CREATE TABLE `knowledge_base_articles` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `category` VARCHAR(100),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `faqs`;
+CREATE TABLE `faqs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `question` VARCHAR(255) NOT NULL,
+  `answer` TEXT NOT NULL,
+  `category` VARCHAR(100),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- SYSTEM SETTINGS & CONFIGURATION
+-- ==========================================
+
+DROP TABLE IF EXISTS `system_settings`;
+CREATE TABLE `system_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(100) UNIQUE,
+  `value` TEXT,
+  `group` VARCHAR(50) DEFAULT 'general',
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `email_settings`;
+CREATE TABLE `email_settings` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `smtp_host` VARCHAR(255) NULL,
+    `smtp_port` INT NULL,
+    `smtp_username` VARCHAR(255) NULL,
+    `smtp_password` VARCHAR(255) NULL,
+    `from_email` VARCHAR(255) NULL,
+    `from_name` VARCHAR(255) NULL,
+    `encryption` ENUM('ssl', 'tls', 'none') DEFAULT 'none',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+DROP TABLE IF EXISTS `email_templates`;
+CREATE TABLE `email_templates` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) UNIQUE,
+  `subject` VARCHAR(255),
+  `body` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `payment_gateways`;
+CREATE TABLE `payment_gateways` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) UNIQUE,
+  `description` TEXT,
+  `is_active` BOOLEAN DEFAULT TRUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `gateway_settings`;
+CREATE TABLE `gateway_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `gateway_id` BIGINT UNSIGNED NOT NULL,
+  `key` VARCHAR(100),
+  `value` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`gateway_id`) REFERENCES `payment_gateways`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `system_logs`;
+CREATE TABLE `system_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `level` VARCHAR(20) NOT NULL,
+  `message` TEXT NOT NULL,
+  `context` JSON,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ==========================================
+-- CMS & THEMES
+-- ==========================================
+DROP TABLE IF EXISTS `cms_pages`;
+CREATE TABLE `cms_pages` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255),
+  `slug` VARCHAR(255) UNIQUE,
+  `content` TEXT,
+  `status` ENUM('published', 'draft') DEFAULT 'draft',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_posts`;
+CREATE TABLE `cms_posts` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255),
+  `slug` VARCHAR(255) UNIQUE,
+  `content` TEXT,
+  `status` ENUM('published', 'draft') DEFAULT 'draft',
+  `category_id` BIGINT UNSIGNED,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`category_id`) REFERENCES `cms_categories`(`id`) ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS `cms_tags`;
+CREATE TABLE `cms_tags` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL,
+  `slug` VARCHAR(100) UNIQUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_menus`;
+CREATE TABLE `cms_menus` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL,
+  `slug` VARCHAR(100) UNIQUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_menu_items`;
+CREATE TABLE `cms_menu_items` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `menu_id` BIGINT UNSIGNED NOT NULL,
+  `title` VARCHAR(100) NOT NULL,
+  `url` VARCHAR(255),
+  `target` VARCHAR(20) DEFAULT '_self',
+  `position` INT DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`menu_id`) REFERENCES `cms_menus`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `cms_widgets`;
+CREATE TABLE `cms_widgets` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL,
+  `slug` VARCHAR(100) UNIQUE,
+  `description` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_categories`;
+CREATE TABLE `cms_categories` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL,
+  `slug` VARCHAR(100) UNIQUE,
+  `description` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_banners`;
+CREATE TABLE `cms_banners` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(255),
+  `image` VARCHAR(255),
+  `link` VARCHAR(255),
+  `status` ENUM('published', 'draft') DEFAULT 'draft',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_testimonials`;
+CREATE TABLE `cms_testimonials` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255),
+  `position` VARCHAR(255),
+  `company` VARCHAR(255),
+  `content` TEXT,
+  `status` ENUM('published', 'draft') DEFAULT 'draft',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_settings`;
+CREATE TABLE `cms_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(100) UNIQUE,
+  `value` TEXT,
+  `group` VARCHAR(50) DEFAULT 'general',
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_seo_settings`;
+CREATE TABLE `cms_seo_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(100) UNIQUE,
+  `value` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_analytics`;
+CREATE TABLE `cms_analytics` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(100) UNIQUE,
+  `value` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_social_links`;
+CREATE TABLE `cms_social_links` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `platform` VARCHAR(50) NOT NULL,
+  `url` VARCHAR(255) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+DROP TABLE IF EXISTS `cms_footers`;
+CREATE TABLE `cms_footers` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `content` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_headers`;
+CREATE TABLE `cms_headers` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `content` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_sidebars`;
+CREATE TABLE `cms_sidebars` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `content` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `cms_media_gallery`;
+CREATE TABLE `cms_media_gallery` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `file_name` VARCHAR(255) NOT NULL,
+  `file_path` VARCHAR(255) NOT NULL,
+  `file_type` VARCHAR(50) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+DROP TABLE IF EXISTS `themes`;
+CREATE TABLE `themes` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100),
+  `slug` VARCHAR(100) UNIQUE,
+  `description` TEXT,
+  `version` VARCHAR(20),
+  `author` VARCHAR(100),
+  `status` ENUM('active', 'inactive') DEFAULT 'inactive',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `theme_settings`;
+CREATE TABLE `theme_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `key` VARCHAR(100),
+  `value` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_assets`;
+CREATE TABLE `theme_assets` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `type` ENUM('css', 'js', 'image') NOT NULL,
+  `path` VARCHAR(255) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE
+);
+DROP TABLE IF EXISTS `theme_customizations`;
+CREATE TABLE `theme_customizations` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `custom_css` TEXT NULL,
+  `custom_js` TEXT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_usage_logs`;
+CREATE TABLE `theme_usage_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `action` ENUM('activated', 'deactivated', 'customized') NOT NULL,
+  `ip_address` VARCHAR(45) NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_update_logs`;
+CREATE TABLE `theme_update_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `version_from` VARCHAR(20),
+  `version_to` VARCHAR(20),
+  `changelog` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_conflicts`;
+CREATE TABLE `theme_conflicts` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `conflicting_plugin` VARCHAR(255),
+  `description` TEXT,
+  `reported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_general_settings`;
+CREATE TABLE `theme_general_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `setting_key` VARCHAR(100),
+  `setting_value` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_generation`;
+CREATE TABLE `theme_generation` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `theme_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `theme_name` VARCHAR(255) NOT NULL,
+  `theme_description` TEXT NULL,
+  `theme_version` VARCHAR(20) NULL,
+  `theme_variant` VARCHAR(50) NULL,
+  `theme_color_scheme` VARCHAR(50) NULL,
+  `theme_layout` VARCHAR(50) NULL,
+  `theme_font` VARCHAR(100) NULL,
+  `theme_customization` JSON NULL,
+  `theme_preview_url` VARCHAR(255) NULL,
+  `theme_download_url` VARCHAR(255) NULL,
+  `theme_screenshot_url` VARCHAR(255) NULL,
+  `theme_markdown_description` TEXT NULL,
+  `theme_template_variables` JSON NULL,
+  `style` ENUM('light', 'dark', 'auto') DEFAULT 'light',
+  `complexity` ENUM('simple', 'moderate', 'complex') DEFAULT 'moderate',
+  `source` ENUM('user_input', 'ai_generated', 'imported') DEFAULT 'user_input',
+  `generation_method` ENUM('manual', 'automated', 'hybrid') DEFAULT 'manual',
+  `priority` ENUM('low', 'medium', 'high') DEFAULT 'medium',
+  `estimated_completion_time` INT NULL, -- in seconds
+  `actual_completion_time` INT NULL, -- in seconds
+  `progress` INT DEFAULT 0, -- 0 to 100
+  `quality_score` DECIMAL(3, 2) NULL, -- 0.00 to 10.00
+  `theme_status` ENUM('pending', 'active', 'inactive') DEFAULT 'inactive',
+  `status` ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
+  `generated_files` JSON NULL,
+  `error_message` TEXT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`theme_id`) REFERENCES `themes`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `theme_generation_logs`;
+CREATE TABLE `theme_generation_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `generation_id` BIGINT UNSIGNED NOT NULL,
+  `message` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`generation_id`) REFERENCES `theme_generation`(`id`) ON DELETE CASCADE
+);
+
+
+DROP TABLE IF EXISTS `audit_logs`;
+CREATE TABLE `audit_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED,
+  `action` VARCHAR(100),
+  `entity` VARCHAR(100),
+  `entity_id` BIGINT UNSIGNED,
+  `old_value` JSON,
+  `new_value` JSON,
+  `ip` VARCHAR(45),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `notifications`;
+CREATE TABLE `notifications` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `type` ENUM('system', 'subscription', 'security', 'product') NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `message` TEXT NOT NULL,
+  `data` JSON NULL,
+  `is_read` BOOLEAN DEFAULT FALSE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `activity_logs`;
+CREATE TABLE `activity_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED,
+  `activity_type` VARCHAR(100),
+  `description` TEXT,
+  `ip_address` VARCHAR(45),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS `api_request_logs`;
+CREATE TABLE `api_request_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `api_client_id` BIGINT UNSIGNED,
+  `endpoint` VARCHAR(255),
+  `method` VARCHAR(10),
+  `request_data` JSON,
+  `response_data` JSON,
+  `status_code` INT,
+  `ip_address` VARCHAR(45),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`api_client_id`) REFERENCES `api_clients`(`id`) ON DELETE SET NULL
+);
+
+DROP TABLE IF EXISTS `system_logs`;
+CREATE TABLE `system_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `level` ENUM('debug', 'info', 'warning', 'error', 'critical') DEFAULT 'info',
+  `message` TEXT,
+  `context` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `hardware_activations`;
+CREATE TABLE `hardware_activations` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `license_id` BIGINT UNSIGNED NOT NULL,
+  `machine_id` VARCHAR(100) NOT NULL,
+  `cpu_id` VARCHAR(100) NULL,
+  `motherboard_serial` VARCHAR(100) NULL,
+  `bios_serial` VARCHAR(100) NULL,
+  `disk_serial` VARCHAR(100) NULL,
+  `mac_address` VARCHAR(17) NULL,
+  `os_name` VARCHAR(50) NULL,
+  `os_version` VARCHAR(20) NULL,
+  `os_architecture` VARCHAR(10) NULL,
+  `cpu_name` VARCHAR(100) NULL,
+  `cpu_cores` INT NULL,
+  `total_memory` INT NULL, -- in MB
+  `system_manufacturer` VARCHAR(100) NULL,
+  `system_model` VARCHAR(100) NULL,
+  `local_ip` VARCHAR(45) NULL,
+  `public_ip` VARCHAR(45) NULL,
+  `status` ENUM('active', 'inactive', 'suspicious', 'banned') DEFAULT 'active',
+  `activation_limit` INT DEFAULT 1,
+  `activated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `last_ping_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  -- Required specs for compatibility checks
+  `required_os_min` VARCHAR(50) NULL, -- e.g. "Windows 10", "Ubuntu 20.04"
+  `required_memory_mb` INT NULL, -- Minimum required memory in MB
+  `required_disk_mb` INT NULL, -- Minimum required disk space in MB
+  
+  -- Compatibility status after checks
+  `compatibility_status` ENUM('compatible', 'incompatible', 'unknown') DEFAULT 'unknown',
+  
+  FOREIGN KEY (`license_id`) REFERENCES `licenses`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `hardware_activation_logs`;
+CREATE TABLE `hardware_activation_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `hardware_activation_id` BIGINT UNSIGNED NULL,
+  `license_id` BIGINT UNSIGNED NOT NULL,
+  `machine_id` VARCHAR(100) NOT NULL,
+  
+  -- Hardware details at time of activation
+  `hardware_snapshot` JSON, -- Complete hardware fingerprint at activation
+  `system_specs` JSON, -- OS, CPU, memory details
+  
+  -- Status & Result
+  `activation_status` ENUM('success', 'failed', 'hardware_mismatch', 'limit_exceeded', 'suspicious') NOT NULL,
+  `failure_reason` VARCHAR(255) NULL, -- Reason if failed
+  
+  -- Security Checks
+  `vm_detected` BOOLEAN DEFAULT FALSE,
+  `tamper_detected` BOOLEAN DEFAULT FALSE,
+  `compatibility_result` ENUM('compatible', 'incompatible', 'unknown') DEFAULT 'unknown',
+  
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (`license_id`) REFERENCES `licenses`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`hardware_activation_id`) REFERENCES `hardware_activations`(`id`) ON DELETE CASCADE,
+  INDEX `idx_license_machine` (`license_id`, `machine_id`),
+  INDEX `idx_created` (`created_at`)
+);
+
+
+-- ==========================================
+-- LLM INTEGRATION & MANAGEMENT
+-- ==========================================
+
+DROP TABLE IF EXISTS `llm_providers`;
+CREATE TABLE `llm_providers` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL,
+  `api_key` VARCHAR(255) NOT NULL,
+  `base_url` VARCHAR(255) NOT NULL,
+  `status` ENUM('active', 'inactive') DEFAULT 'active'
+);
+
+DROP TABLE IF EXISTS `llm_logs`;
+CREATE TABLE `llm_logs` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `provider_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `prompt` TEXT NOT NULL,
+  `response` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (`provider_id`) REFERENCES `llm_providers`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `llm_provider_settings`;
+CREATE TABLE `llm_provider_settings` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `provider_id` BIGINT UNSIGNED NOT NULL,
+  `setting_key` VARCHAR(100) NOT NULL,
+  `setting_value` TEXT NOT NULL,
+  
+  FOREIGN KEY (`provider_id`) REFERENCES `llm_providers`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `llm_provider_activity`;
+CREATE TABLE `llm_provider_activity` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `provider_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `activity_type` ENUM('prompt', 'response', 'error') NOT NULL,
+  `details` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (`provider_id`) REFERENCES `llm_providers`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS `llm_provider_usage`;
+CREATE TABLE `llm_provider_usage` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `provider_id` BIGINT UNSIGNED NOT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `tokens_used` INT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (`provider_id`) REFERENCES `llm_providers`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- SECURITY & MONITORING & ANALYTICS & REPORTING & AUDITING & VULNERABILITY SCANNING & PENETRATION TESTING
+-- ==========================================
+DROP TABLE IF EXISTS `security_events`;
+CREATE TABLE `security_events` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NULL,
+  `event_type` VARCHAR(100) NOT NULL,
+  `description` TEXT,
+  `ip_address` VARCHAR(45) NULL,
+  `user_agent` VARCHAR(500) NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+);
+drop TABLE IF EXISTS `vulnerability_scans`;
+CREATE TABLE `vulnerability_scans` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `scan_type` ENUM('full', 'quick', 'custom') NOT NULL,
+  `target` VARCHAR(255) NOT NULL,
+  `status` ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
+  `results` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+DROP TABLE IF EXISTS `penetration_tests`;
+CREATE TABLE `penetration_tests` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `test_type` ENUM('external', 'internal', 'web_app', 'mobile_app') NOT NULL,
+  `target` VARCHAR(255) NOT NULL,
+  `status` ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
+  `findings` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+DROP TABLE IF EXISTS `audit_trails`;
+CREATE TABLE `audit_trails` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NULL,
+  `action` VARCHAR(255) NOT NULL,
+  `entity` VARCHAR(255) NOT NULL,
+  `entity_id` BIGINT UNSIGNED NOT NULL,
+  `timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+);
+DROP TABLE IF EXISTS `compliance_reports`;
+CREATE TABLE `compliance_reports` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `report_type` ENUM('GDPR', 'HIPAA', 'PCI-DSS') NOT NULL,
+  `status` ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
+  `findings` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS `security_incidents`;
+CREATE TABLE `security_incidents` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `incident_type` ENUM('data_breach', 'unauthorized_access', 'malware_infection') NOT NULL,
+  `description` TEXT NOT NULL,
+  `status` ENUM('open', 'investigating', 'resolved') DEFAULT 'open',
+  `reported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+SET FOREIGN_KEY_CHECKS=1;
+
+
+
+-- 1. Users (Admin, Seller, Customer)
+INSERT INTO `users` (`id`, `role`, `name`, `email`, `status`, `created_at`) VALUES
+(1, 'admin', 'Super Admin', 'admin@licensepro.com', 'active', '2026-05-30 00:00:00'),
+(2, 'seller', 'CodeMaster Seller', 'seller@licensepro.com', 'active', '2026-05-30 00:00:00'),
+(3, 'user', 'John Buyer', 'john@customer.com', 'active', '2026-05-30 00:00:00');
+
+-- Seller Details (Balance & Commission)
+INSERT INTO `seller_details` (`user_id`, `payout_method`, `payout_address`, `balance`, `commission_rate`) VALUES
+(2, 'stripe', 'acct_123456', 150.0000, 80.00);
+
+-- 2. Products
+INSERT INTO `products` (`id`, `seller_id`, `name`, `slug`, `description`, `type`, `base_price`, `status`) VALUES
+(1, 2, 'Ultimate CRM Script', 'ultimate-crm', 'Advanced CRM for Agencies', 'script', 59.00, 'active'),
+(2, NULL, 'SaaS Boilerplate', 'saas-boilerplate', 'Laravel SaaS Starter', 'software', 99.00, 'active'); -- Admin Product
+
+-- 2. Products
+INSERT INTO `products` (`id`, `seller_id`, `name`, `slug`, `description`, `type`, `base_price`, `status`, `hardware_requirements`, `version`, `download_url`) VALUES
+(1, 2, 'Ultimate CRM Script', 'ultimate-crm', 'Advanced CRM for Agencies', 'script', 59.00, 'active', NULL, '1.0.0', NULL),
+(2, NULL, 'SaaS Boilerplate', 'saas-boilerplate', 'Laravel SaaS Starter', 'software', 99.00, 'active', NULL, '1.0.0', NULL),
+(3, 2, 'Desktop Inventory Manager', 'desktop-inventory-manager', 'Offline inventory management desktop application', 'desktop', 149.00, 'active', '{"min_cpu_cores": 2, "min_memory_mb": 4096, "min_disk_mb": 500, "supported_os": ["Windows 10", "Windows 11", "macOS 12+", "Ubuntu 20.04+"]}', '2.1.0', 'https://downloads.licensepro.com/inventory-manager-2.1.0.exe');-- 3. Plans
+INSERT INTO `subscription_plans` (`id`, `name`, `code`, `duration_months`, `max_activations`, `price_monthly`, `price_yearly`) VALUES
+(1, 'Starter', 'starter', 1, 1, 9.99, 99.00),
+(2, 'Professional', 'professional', 12, 5, 29.99, 299.00);
+
+-- 4. User Subscriptions (John bought a subscription)
+INSERT INTO `user_subscriptions` (`id`, `user_id`, `plan_id`, `product_id`, `status`, `start_date`, `end_date`) VALUES
+(1, 3, 2, 1, 'active', '2026-05-01 00:00:00', '2027-05-01 00:00:00');
+
+-- 5. API Client (Generated for the user)
+INSERT INTO `api_clients` (`user_id`, `name`, `username`, `api_key`, `domain_url`, `status`) VALUES
+(3, 'John Production App', 'john', 'john', 'api-xxxx-xxxx-xxxx-xxxx', 'https://johnsbusiness.com', 'active');
+
+-- 6. License (Generated from Subscription)
+INSERT INTO `licenses` (`id`, `user_id`, `product_id`, `api_client_id`, `subscription_id`, `license_key`, `L_Api_key`, `status`, `max_activations`, `expires_at`) VALUES
+(1, 3, 1, 1, 1, 'LIC-PRO-2026-8888', 'licence-api-xxxx-xxxx-xxxx-xxxx', 'active', 5, '2027-05-01 00:00:00');
+
+-- 7. Activation (User installed script)
+INSERT INTO `license_activations` (`id`, `license_id`, `domain`, `hosting_ip`, `status`, `last_verified_at`) VALUES
+(1, 1, 'crm.johnsbusiness.com', '103.231.222.15', 'active', '2026-05-30 10:00:00');
+
+-- 8. Verification Log (Successful Tier 5 Check)
+INSERT INTO `verification_logs` (`activation_id`, `license_key`, `api_key`, `ip_address`, `request_domain`, `request_ip`, `tier1_api`, `tier2_license`, `tier3_domain`, `tier4_ip`, `tier5_subscription`, `overall_result`, `created_at`) VALUES
+(1, 'LIC-PRO-2026-8888', 'licence-api-xxxx-xxxx-xxxx-xxxx', '103.231.222.15', 'crm.johnsbusiness.com', '103.231.222.15', 'pass', 'pass', 'pass', 'pass', 'pass', 'valid', '2026-05-30 10:00:00');
+
+-- 9. Fraud Log Example (Suspicious IP change attempt)
+INSERT INTO `fraud_logs` (`license_id`, `activation_id`, `ip`, `domain`, `reason`, `severity`, `created_at`) VALUES
+(1, NULL, '45.12.55.1', 'unknown-hack.com', 'Domain mismatch with valid key. Possible phishing.', 'medium', '2026-05-30 11:00:00');
+
+-- 10. Invoice & Payment
+INSERT INTO `invoices` (`user_id`, `subscription_id`, `invoice_number`, `total`, `status`) VALUES
+(3, 1, 'INV-2026-001', 299.00, 'paid');
+
+INSERT INTO `payments` (`invoice_id`, `gateway`, `transaction_id`, `amount`, `status`) VALUES
+(1, 'stripe', 'pi_39182931293', 299.00, 'success');
+
+-- 11. Notification Example
+INSERT INTO `notifications` (`user_id`, `type`, `title`, `message`, `data`, `created_at`) VALUES
+(1, 'system', 'Welcome', 'Welcome to LicensePro Platform', '{"feature": "license_activation"}', '2026-05-30 00:00:00');
+
+-- ==========================================
+-- DESKTOP LICENSE & HARDWARE ACTIVATION EXAMPLES
+-- ==========================================
+
+-- 12. Desktop License (for product_id 3)
+INSERT INTO `licenses` (`id`, `user_id`, `product_id`, `api_client_id`, `plan_id`, `subscription_id`, `license_key`, `status`, `max_activations`, `expires_at`) VALUES
+(2, 3, 3, 1, 2, 1, 'LIC-DESKTOP-2026-9999', 'active', 3, '2027-05-01');
+
+-- 13. Hardware Activation (Desktop App Installation)
+INSERT INTO `hardware_activations` (
+  `id`, `license_id`, `machine_id`, `cpu_id`, `motherboard_serial`, `bios_serial`, 
+  `disk_serial`, `mac_address`, `os_name`, `os_version`, `os_architecture`,
+  `cpu_name`, `cpu_cores`, `total_memory`, `system_manufacturer`, `system_model`,
+  `local_ip`, `public_ip`, `status`, `activation_limit`, `activated_at`, `last_ping_at`,
+  `required_os_min`, `required_memory_mb`, `required_disk_mb`, `compatibility_status`
+) VALUES (
+  1, 2, 'HW-MACHINE-ABC123', 'CPU-INTL-X9K3M', 'MB-ASUS-Z390-XYZ', 'BIOS-AMI-1.2.3',
+  'DISK-SNV123456', 'MAC-AA:BB:CC:DD:EE:FF', 'Windows', '11', 'x64',
+  'Intel Core i7-9700K', 8, 16384, 'ASUS', 'ROG Strix Z390',
+  '192.168.1.100', '203.157.123.45', 'active', 3, '2026-05-30 10:00:00', '2026-05-30 12:00:00',
+  'Windows 10', 4096, 500, 'compatible'
+);
+
+-- 14. Hardware Activation Log
+INSERT INTO `hardware_activation_logs` (
+  `hardware_activation_id`, `license_id`, `machine_id`, `hardware_snapshot`, 
+  `system_specs`, `activation_status`, `vm_detected`, `tamper_detected`, `compatibility_result`
+) VALUES (
+  1, 2, 'HW-MACHINE-ABC123', 
+  '{"machine_id": "HW-MACHINE-ABC123", "cpu": "Intel Core i7-9700K", "memory": 16384}',
+  '{"os": "Windows 11 x64", "cpu_cores": 8, "total_memory_mb": 16384}',
+  'success', FALSE, FALSE, 'compatible'
+);
+
+-- 15. LLM Provider & Logs
+INSERT INTO `llm_providers` (`id`, `name`, `api_key`, `base_url`, `status`) VALUES
+(1, 'OpenAI', 'openai-api-key-xxxx-xxxx', 'https://api.openai.com/v1', 'active');
+INSERT INTO `llm_logs` (`provider_id`, `user_id`, `prompt`, `response`, `created_at`) VALUES
+(1, 3, 'What is the capital of France?', 'The capital of France is Paris.', '2026-05-30 14:00:00');
+
+-- 16. Security Event
+INSERT INTO `security_events` (`user_id`, `event_type`, `description`, `ip_address`, `user_agent`, `created_at`) VALUES
+(3, 'login_success', 'User logged in successfully', '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', '2026-05-30 14:00:00');
+
+-- 17. Vulnerability Scan
+INSERT INTO `vulnerability_scans` (`scan_type`, `target`, `status`, `results`, `created_at`) VALUES
+('full', 'crm.johnsbusiness.com', 'completed', '{"vulnerabilities": [{"id": "VULN-001", "description": "SQL Injection", "severity": "high"}]}', '2026-05-30 15:00:00');
+
+-- 18. Penetration Test
+INSERT INTO `penetration_tests` (`test_type`, `target`, `status`, `findings`, `created_at`) VALUES
+('web_app', 'crm.johnsbusiness.com', 'completed', '{"findings": [{"id": "FIND-001", "description": "Cross-Site Scripting (XSS)", "severity": "medium"}]}', '2026-05-30 16:00:00');
+
+-- 19. Compliance Report
+INSERT INTO `compliance_reports` (`report_type`, `status`, `findings`, `created_at`) VALUES
+('GDPR', 'completed', '{"compliance_status": "non-compliant", "issues": [{"id": "ISSUE-001", "description": "Lack of user data export functionality", "severity": "high"}]}', '2026-05-30 17:00:00');
+
+-- 20. Security Incident
+INSERT INTO `security_incidents` (`incident_type`, `description`, `status`, `reported_at`) VALUES
+('data_breach', 'Unauthorized access detected on crm.johnsbusiness.com', 'investigating', '2026-05-30 18:00:00');
+
+-- ==========================================
+-- CMS Page Example
+-- ==========================================
+
+INSERT INTO `cms_pages` (`id`, `title`, `content`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'Home', '<h1>Welcome to Our Site</h1><p>This is the home page content.</p>', 'published', '2026-05-30 14:00:00', '2026-05-30 14:00:00');
+INSERT INTO `cms_pages` (`id`, `title`, `content`, `status`, `created_at`, `updated_at`) VALUES
+(2, 'About Us', '<h1>About Our Company</h1><p>We are a leading provider of software solutions.</p>', 'published', '2026-05-30 14:00:00', '2026-05-30 14:00:00');
+INSERT INTO `cms_pages` (`id`, `title`, `content`, `status`, `created_at`, `updated_at`) VALUES
+(3, 'Contact', '<h1>Contact Us</h1><p>Email: info@johnsbusiness.com</p>', 'published', '2026-05-30 14:00:00', '2026-05-30 14:00:00');
+
+-- ==========================================
+-- Theme Example
+-- ==========================================
+
+INSERT INTO `themes` (`id`, `name`, `description`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'Default', 'The default theme for the website', 'active', '2026-05-30 14:00:00', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_settings` (`id`, `theme_id`, `setting_key`, `setting_value`, `created_at`) VALUES
+(1, 1, 'primary_color', '#3498db', '2026-05-30 14:00:00');
+INSERT INTO `theme_settings` (`id`, `theme_id`, `setting_key`, `setting_value`, `created_at`) VALUES
+(2, 1, 'secondary_color', '#2ecc71', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_assets` (`id`, `theme_id`, `type`, `path`, `created_at`) VALUES
+(1, 1, 'css', '/themes/default/style.css', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_assets` (`id`, `theme_id`, `type`, `path`, `created_at`) VALUES
+(2, 1, 'js', '/themes/default/script.js', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_assets` (`id`, `theme_id`, `type`, `path`, `created_at`) VALUES
+(3, 1, 'image', '/themes/default/logo.png', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_customizations` (`id`, `theme_id`, `user_id`, `custom_css`, `custom_js`, `created_at`) VALUES
+(1, 1, 3, 'body { background-color: #f0f0f0; }', 'console.log("Custom JS Loaded");', '2026-05-30 14:00:00');
+INSERT INTO `theme_usage_logs` (`id`, `theme_id`, `user_id`, `action`, `ip_address`, `created_at`) VALUES
+(1, 1, 3, 'activated', '192.168.1.1', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_update_logs` (`id`, `theme_id`, `version_from`, `version_to`, `changelog`, `created_at`) VALUES
+(1, 1, '1.0.0', '1.1.0', 'Added new color scheme options.', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_conflicts` (`id`, `theme_id`, `conflicting_plugin`, `description`, `reported_at`) VALUES
+(1, 1, 'SEO Optimizer', 'The SEO Optimizer plugin causes layout issues with the Default theme.', '2026-05-30 14:00:00');
+INSERT INTO `theme_general_settings` (`id`, `theme_id`, `setting_key`, `setting_value`, `created_at`) VALUES
+(1, 1, 'enable_dark_mode', 'true', '2026-05-30 14:00:00');
+INSERT INTO `theme_generation` (`id`, `theme_id`, `user_id`, `status`, `created_at`) VALUES
+(1, 1, 3, 'completed', '2026-05-30 14:00:00');
+
+INSERT INTO `theme_generation_logs` (`id`, `generation_id`, `message`, `created_at`) VALUES
+(1, 1, 'Theme generation completed successfully.', '2026-05-30 14:00:00');
+

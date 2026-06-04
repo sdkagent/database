@@ -1,0 +1,31 @@
+# Model Directory Map — Organized by Domain (29 domains, 252 models)
+
+Auth/        (15) User, PasswordReset, Role, Permission, UserRole, Organization, OrganizationMember, AuthLog, Session, PersonalAccessToken, SocialAccount, UserTwoFa, UserAddress, UserDevice, UserPaymentMethod
+Product/     (9)  Product, ProductCategory, ProductDiscount, ProductHardwareRequirement, SubscriptionPlan, UserSubscription, Review, Wishlist, WishlistItem
+Billing/     (7)  Invoice, Payment, Refund, PaymentGateway, PaymentGatewaySetting, Currency, ExchangeRate
+Commerce/    (12) Order, OrderItem, OrderItemMetadata, OrderStatusHistory, Cart, CartItem, Coupon, Shipment, Affiliate, Referral, FileDownload, ReturnRequest
+Licensing/   (5)  License, LicenseActivation, ApiClient, HardwareActivation, HardwareActivationLog
+Support/     (7)  Ticket, TicketMessage, ChatSession, ChatMessage, FaqItem, KnowledgeBaseArticle, UserGuide
+Cms/         (24) CmsBanner, CmsCategory, CmsFooter, CmsHeader, CmsMediaGallery, CmsMenu, CmsMenuItem, CmsPage, CmsPageTag, CmsSetting, CmsSidebar, CmsSocialLink, CmsTag, CmsTestimonial, CmsWidget, AuthorProfile, SeoAnalysis, StructuredData, Video, VideoGallery, VideoGuideline, VideoTag, Redirect, SlugHistory
+Theme/       (10) Theme, ThemeAsset, ThemeConflict, ThemeCustomization, ThemeGeneralSetting, ThemeGeneration, ThemeGenerationLog, ThemeSetting, ThemeUpdateLog, ThemeUsageLog
+Llm/         (9)  LlmProvider, LlmProviderActivity, LlmProviderLog, LlmProviderSetting, LlmProviderUsage, BotConfig, BotConversation, RateLimitRule, RateLimitLog
+Security/    (8)  SecurityEvent, SecurityIncident, VulnerabilityScan, PenetrationTest, ComplianceReport, HealthCheck, FraudLog, VerificationLog
+Logging/     (11) Notification, AuditTrail, SystemLog, EventLog, Webhook, WebhookDeliveryLog, AnalyticsEvent, ApiRequestLog, MaintenanceLog, MaintenanceSchedule, MaintenanceWindow
+System/      (6)  SystemSetting, FeatureFlag, ScheduledTask, ApplicationUpdate, ReleaseNote, Announcement
+Accounting/  (14) ChartOfAccount, AccountBalance, AccountPeriod, JournalEntry, JournalEntryLine, JournalEntryType, CostCenter, CostAllocation, ProfitCenter, Budget, BudgetLine, BudgetVersion, FiscalYear, BalanceLedger
+Inventory/   (10) InventoryAdjustment, InventoryMovement, StockCount, StockCountItem, StockItem, Warehouse, WarehouseLocation, ReorderRule, TransferOrder, TransferOrderItem
+Procurement/ (13) Supplier, SupplierContact, SupplierPricelist, SupplierProduct, SupplierQuotation, PurchaseOrder, PurchaseOrderItem, PurchaseReceipt, PurchaseReceiptItem, PurchaseInvoice, PurchaseInvoiceItem, Rfq, RfqItem, QuotationItem
+Production/  (9)  ProductionOrder, ProductionOrderStep, ProductionOutput, ProductionMaterialIssue, BillOfMaterial, BomItem, WorkCenter, WorkCenterCapacity, CapacityPlan
+Hr/          (14) Employee, EmployeeContract, EmployeeDocument, Department, JobPosition, Attendance, Timesheet, LeaveBalance, LeaveRequest, LeaveType, PayrollComponent, PayrollItem, PayrollItemDetail, PayrollRun
+Content/     (12) Post, PostComment, PostMedium, PostReaction, PostSeries, PostSeriesItem, PostTag, PostView, RelatedPost, ContentBlock, ContentRevision, MediaLibrary
+Workflow/    (14) WorkflowDefinition, WorkflowNode, WorkflowTransition, WorkflowRun, WorkflowRunLog, WorkflowRunNodeState, WorkflowRunVariable, Trigger, TriggerWorkflowMapping, ApprovalAssignee, ApprovalRequest, ApprovalStage
+Moderation/  (4)  ModerationAction, ModerationBlocklist, ModerationQueue, ModerationReport
+Gdpr/        (4)  ConsentLog, CookieConsentSetting, DataDeletionRequest, DataExportRequest
+Tax/         (5)  TaxExemption, TaxJurisdiction, TaxRate, TaxReportDatum, TaxRule
+Pricing/     (7)  PriceOverride, PriceRule, PriceRuleAudit, PriceTier, ConditionGroup, ConditionGroupMapping, ConditionRule
+I18n/        (3)  LanguagePack, Translation, TranslationFile
+Sms/         (6)  SmsAutomation, SmsCampaign, SmsCampaignRecipient, SmsLog, SmsProvider, SmsTemplate
+Email/       (3)  EmailAutomation, EmailSetting, EmailTemplate
+Seller/      (5)  SellerProfile, SellerStat, SellerVerification, PayoutAccount, PayoutTransaction
+Form/        (3)  FormSubmission, Routing, RoutingStep
+Reporting/   (4)  ReportCategory, ReportDefinition, ReportSchedule, DashboardWidget
