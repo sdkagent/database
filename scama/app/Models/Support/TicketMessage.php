@@ -17,6 +17,8 @@ class TicketMessage extends Model
 
     public $timestamps = false;
 
+    protected $touches = ['ticket'];
+
     protected $fillable = [
         'ticket_id', 'sender_id', 'message', 'attachments',
     ];

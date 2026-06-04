@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use App\Models\Commerce\Affiliate;
 use App\Models\Licensing\ApiClient;
@@ -18,12 +19,18 @@ use App\Models\Billing\Invoice;
 use App\Models\Licensing\License;
 use App\Models\Commerce\Order;
 use App\Models\Commerce\OrderStatusHistory;
+use App\Models\Content\PostComment;
+use App\Models\Product\Review;
 use App\Models\Commerce\Referral;
 use App\Models\Billing\Refund;
 use App\Models\Seller\SellerProfile;
 use App\Models\Seller\SellerVerification;
+use App\Models\Sms\SmsCampaign;
+use App\Models\Sms\SmsCampaignRecipient;
+use App\Models\Auth\SocialAccount;
 use App\Models\Support\Ticket;
 use App\Models\Support\TicketMessage;
+use App\Models\Auth\UserAddress;
 use App\Models\Product\UserSubscription;
 use App\Models\Product\Wishlist;
 
@@ -66,9 +73,9 @@ class User extends Model
         return $this->hasMany(OrganizationMember::class);
     }
 
-    public function sellerProfile(): HasMany
+    public function sellerProfile(): HasOne
     {
-        return $this->hasMany(SellerProfile::class);
+        return $this->hasOne(SellerProfile::class);
     }
 
     public function authLogs(): HasMany
@@ -184,5 +191,35 @@ class User extends Model
     public function userRoles(): HasMany
     {
         return $this->hasMany(UserRole::class);
+    }
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(UserAddress::class);
+    }
+
+    public function postComments(): HasMany
+    {
+        return $this->hasMany(PostComment::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function smsCampaigns(): HasMany
+    {
+        return $this->hasMany(SmsCampaign::class);
+    }
+
+    public function smsCampaignRecipients(): HasMany
+    {
+        return $this->hasMany(SmsCampaignRecipient::class);
     }
 }

@@ -19,6 +19,8 @@ class OrderItem extends Model
 
     public $timestamps = false;
 
+    protected $touches = ['order'];
+
     protected $fillable = [
         'order_id', 'product_id', 'plan_id', 'item_type', 'name',
         'quantity', 'unit_price', 'subtotal',

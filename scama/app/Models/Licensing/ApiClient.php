@@ -26,6 +26,7 @@ class ApiClient extends Model
     ];
 
     protected $hidden = [
+        'api_key',
         'api_secret',
     ];
 

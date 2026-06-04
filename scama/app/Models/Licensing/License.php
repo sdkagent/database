@@ -26,6 +26,13 @@ class License extends Model
         'max_activations', 'current_activations', 'last_activity_at',
     ];
 
+    protected $hidden = [
+        'license_key',
+        'api_key',
+    ];
+
+    protected $with = ['product', 'user'];
+
     protected function casts(): array
     {
         return [

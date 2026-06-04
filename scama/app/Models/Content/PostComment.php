@@ -16,6 +16,8 @@ class PostComment extends Model
 
     protected $table = 'post_comments';
 
+    protected $touches = ['post'];
+
     protected $fillable = [
         'post_id', 'user_id', 'parent_id', 'author_name',
         'author_email', 'body', 'status',

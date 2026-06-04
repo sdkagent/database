@@ -52,4 +52,9 @@ class UserAddress extends Model
     {
         return $this->hasMany(Order::class, 'billing_address_id');
     }
+
+    public function shippedOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'shipping_address_id');
+    }
 }

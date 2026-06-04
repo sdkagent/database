@@ -17,6 +17,8 @@ class LicenseActivation extends Model
 
     protected $table = 'license_activations';
 
+    protected $touches = ['license'];
+
     protected $fillable = [
         'license_id', 'domain', 'hosting_ip', 'status',
         'last_verified_at', 'meta',

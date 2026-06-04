@@ -18,6 +18,10 @@ class LlmProvider extends Model
         'name', 'api_key', 'base_url', 'status',
     ];
 
+    protected $hidden = [
+        'api_key',
+    ];
+
     protected function casts(): array
     {
         return [

@@ -20,6 +20,8 @@ class Order extends Model
 
     protected $table = 'orders';
 
+    protected $with = ['items', 'billingAddress', 'shippingAddress'];
+
     protected $fillable = [
         'user_id', 'order_number', 'status', 'subtotal', 'tax',
         'discount_total', 'total', 'currency', 'notes', 'billing_address_id',

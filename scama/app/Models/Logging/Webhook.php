@@ -13,6 +13,10 @@ class Webhook extends Model
 
     protected $table = 'webhooks';
 
+    protected $hidden = [
+        'secret',
+    ];
+
     protected $fillable = [
         'name', 'url', 'events', 'secret', 'is_active', 'last_triggered_at',
     ];

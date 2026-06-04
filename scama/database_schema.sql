@@ -353,23 +353,11 @@ CREATE TABLE `products` (
   INDEX `idx_products_seller` (`seller_id`),
   INDEX `idx_products_status` (`status`),
   INDEX `idx_products_seller_status` (`seller_id`, `status`),
-  CONSTRAINT `fk_products_seller` FOREIGN KEY (`seller_id`) REFERENCES `seller_profiles`(`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `product_hardware_requirements`;
-CREATE TABLE `product_hardware_requirements` (
-  `id`              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `product_id`      BIGINT UNSIGNED NOT NULL,
-  `os_name`         VARCHAR(50) NULL,
-  `os_version_min`  VARCHAR(20) NULL,
-  `cpu_cores_min`   INT NULL,
-  `memory_mb_min`   INT NULL,
-  `disk_mb_min`     INT NULL,
-  `additional_notes` TEXT NULL,
-
-  INDEX `idx_product_hardware_requirements_product` (`product_id`),
-  CONSTRAINT `fk_product_hardware_requirements_product` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_products_search` (`name`, `description`),
+
+  CONSTRAINT `fk_products_seller` FOREIGN KEY (`seller_id`) REFERENCES `seller_profiles`(`user_id`) ON DELETE SET NULL
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `subscription_plans`;
 CREATE TABLE `subscription_plans` (
@@ -1031,9 +1019,11 @@ CREATE TABLE `ticket_messages` (
 
   INDEX `idx_ticket_messages_ticket` (`ticket_id`),
   INDEX `idx_ticket_messages_sender` (`sender_id`),
-  CONSTRAINT `fk_ticket_messages_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_ticket_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_ticket_messages_search` (`message`),
+  CONSTRAINT `fk_ticket_messages_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ticket_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `chat_sessions`;
 CREATE TABLE `chat_sessions` (
@@ -1062,9 +1052,12 @@ CREATE TABLE `chat_messages` (
 
   INDEX `idx_chat_messages_session` (`session_id`),
   INDEX `idx_chat_messages_user` (`user_id`),
-  CONSTRAINT `fk_chat_messages_session` FOREIGN KEY (`session_id`) REFERENCES `chat_sessions`(`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_chat_messages_user`    FOREIGN KEY (`user_id`)    REFERENCES `users`(`id`)         ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_chat_messages_search` (`message`),
+  CONSTRAINT `fk_chat_messages_session` FOREIGN KEY (`session_id`) REFERENCES `chat_sessions`(`id`) ON DELETE CASCADE,
+
+  CONSTRAINT `fk_chat_messages_user`    FOREIGN KEY (`user_id`)    REFERENCES `users`(`id`)         ON DELETE CASCADE
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `bot_conversations`;
 CREATE TABLE `bot_conversations` (
@@ -1118,9 +1111,12 @@ CREATE TABLE `user_guides` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE INDEX `unique_user_guides_slug` (`slug`),
-  INDEX `idx_guides_author` (`author_id`),
-  CONSTRAINT `fk_user_guides_author` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_user_guides_search` (`title`, `content`),
+  INDEX `idx_guides_author` (`author_id`),
+
+  CONSTRAINT `fk_user_guides_author` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `announcements`;
 CREATE TABLE `announcements` (
@@ -1143,9 +1139,11 @@ CREATE TABLE `knowledge_base_articles` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE INDEX `unique_kb_articles_slug` (`slug`),
-  INDEX `idx_kb_articles_category` (`category`),
-  INDEX `idx_kb_articles_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_kb_articles_search` (`title`, `content`),
+  INDEX `idx_kb_articles_category` (`category`),
+  INDEX `idx_kb_articles_status` (`status`)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `faq_items`;
 CREATE TABLE `faq_items` (
@@ -1159,10 +1157,12 @@ CREATE TABLE `faq_items` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
   UNIQUE INDEX `unique_faq_items_slug` (`slug`),
-  INDEX `idx_faq_items_category` (`category`),
-  INDEX `idx_faq_items_position` (`position`),
-  INDEX `idx_faq_items_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_faq_items_search` (`question`, `answer`),
+  INDEX `idx_faq_items_category` (`category`),
+  INDEX `idx_faq_items_position` (`position`),
+  INDEX `idx_faq_items_status` (`status`)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==========================================
 -- 9. CMS
@@ -1221,7 +1221,7 @@ CREATE TABLE `posts` (
   `created_at`        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  UNIQUE INDEX `unique_posts_slug_type` (`slug`, `type`),
+  UNIQUE INDEX `unique_posts_slug_type` (`slug`(191), `type`),
   INDEX `idx_posts_type_status` (`type`, `status`),
   INDEX `idx_posts_author` (`author_id`),
   INDEX `idx_posts_category` (`category_id`),
@@ -1230,9 +1230,13 @@ CREATE TABLE `posts` (
   INDEX `idx_posts_scheduled` (`scheduled_for`),
   INDEX `idx_posts_sitemap` (`sitemap_include`, `status`),
   INDEX `idx_posts_noindex` (`noindex`),
-  CONSTRAINT `fk_posts_author`   FOREIGN KEY (`author_id`)   REFERENCES `users`(`id`)          ON DELETE SET NULL,
-  CONSTRAINT `fk_posts_category` FOREIGN KEY (`category_id`) REFERENCES `cms_categories`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_posts_search` (`title`, `content`, `excerpt`),
+
+  CONSTRAINT `fk_posts_author`   FOREIGN KEY (`author_id`)   REFERENCES `users`(`id`)          ON DELETE SET NULL,
+
+  CONSTRAINT `fk_posts_category` FOREIGN KEY (`category_id`) REFERENCES `cms_categories`(`id`) ON DELETE SET NULL
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `post_tags`;
 CREATE TABLE `post_tags` (
@@ -1487,12 +1491,14 @@ CREATE TABLE `cms_pages` (
   `updated_at`        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE INDEX `unique_cms_pages_slug` (`slug`),
-  INDEX `idx_cms_pages_status` (`status`),
-  INDEX `idx_cms_pages_sitemap` (`sitemap_include`, `status`),
+  FULLTEXT INDEX `ft_cms_pages_search` (`title`, `content`),
+  INDEX `idx_cms_pages_status` (`status`),
+  INDEX `idx_cms_pages_sitemap` (`sitemap_include`, `status`),
+
   INDEX `idx_cms_pages_noindex` (`noindex`),
   INDEX `idx_cms_pages_author` (`author_id`),
   CONSTRAINT `fk_cms_pages_author` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `cms_menus`;
 CREATE TABLE `cms_menus` (
@@ -1727,10 +1733,14 @@ CREATE TABLE `media_library` (
   `created_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  INDEX `idx_media_library_mime` (`mime_type`),
-  INDEX `idx_media_library_uploader` (`uploaded_by`),
-  CONSTRAINT `fk_media_library_uploader` FOREIGN KEY (`uploaded_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_media_library_search` (`filename`, `alt_text`),
+  INDEX `idx_media_library_mime` (`mime_type`),
+
+  INDEX `idx_media_library_uploader` (`uploaded_by`),
+
+  CONSTRAINT `fk_media_library_uploader` FOREIGN KEY (`uploaded_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `content_revisions`;
 CREATE TABLE `content_revisions` (
@@ -2218,9 +2228,11 @@ CREATE TABLE `system_logs` (
   `context`    JSON NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-  INDEX `idx_system_logs_level` (`level`),
-  INDEX `idx_system_logs_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FULLTEXT INDEX `ft_system_logs_search` (`message`),
+  INDEX `idx_system_logs_level` (`level`),
+  INDEX `idx_system_logs_created` (`created_at`)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `email_settings`;
 CREATE TABLE `email_settings` (

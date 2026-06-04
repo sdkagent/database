@@ -17,6 +17,11 @@ class VerificationLog extends Model
 
     public $timestamps = false;
 
+    protected $hidden = [
+        'license_key',
+        'api_key',
+    ];
+
     protected $fillable = [
         'activation_id', 'license_key', 'api_key', 'ip_address',
         'user_agent', 'request_domain', 'request_ip', 'tier1_api',

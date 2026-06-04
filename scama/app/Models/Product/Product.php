@@ -20,6 +20,8 @@ class Product extends Model
 
     protected $table = 'products';
 
+    protected $with = ['sellerProfile'];
+
     protected $fillable = [
         'seller_id', 'name', 'slug', 'description', 'type', 'base_price',
         'sku', 'stock', 'download_limit', 'total_sales', 'avg_rating',

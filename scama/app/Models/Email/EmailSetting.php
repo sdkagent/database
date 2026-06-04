@@ -20,6 +20,10 @@ class EmailSetting extends Model
 
     public $timestamps = false;
 
+    protected $hidden = [
+        'smtp_password',
+    ];
+
     protected function casts(): array
     {
         return [

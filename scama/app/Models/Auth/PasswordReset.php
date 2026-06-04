@@ -18,6 +18,10 @@ class PasswordReset extends Model
         'user_id', 'token', 'type', 'expires_at', 'used_at',
     ];
 
+    protected $hidden = [
+        'token',
+    ];
+
     protected function casts(): array
     {
         return [

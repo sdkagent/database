@@ -28,6 +28,7 @@ class SmsProvider extends Model
     ];
 
     protected $hidden = [
+        'api_key',
         'api_secret',
     ];
 

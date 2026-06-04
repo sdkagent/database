@@ -18,6 +18,8 @@ class CartItem extends Model
 
     public $timestamps = false;
 
+    protected $touches = ['cart'];
+
     protected $fillable = [
         'cart_id', 'product_id', 'plan_id', 'quantity', 'unit_price', 'subtotal',
     ];
