@@ -356,10 +356,40 @@ CREATE TABLE `products` (
   FULLTEXT INDEX `ft_products_search` (`name`, `description`),
 
   CONSTRAINT `fk_products_seller` FOREIGN KEY (`seller_id`) REFERENCES `seller_profiles`(`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+DROP TABLE IF EXISTS `product_hardware_requirements`;
+
+CREATE TABLE `product_hardware_requirements` (
+
+  `id`              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  `product_id`      BIGINT UNSIGNED NOT NULL,
+
+  `os_name`         VARCHAR(50) NULL,
+
+  `os_version_min`  VARCHAR(20) NULL,
+
+  `cpu_cores_min`   INT NULL,
+
+  `memory_mb_min`   INT NULL,
+
+  `disk_mb_min`     INT NULL,
+
+  `additional_notes` TEXT NULL,
+
+
+
+  INDEX `idx_product_hardware_requirements_product` (`product_id`),
+
+  CONSTRAINT `fk_product_hardware_requirements_product` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `subscription_plans`;
+
+
+
+DROP TABLE IF EXISTS `subscription_plans`;
 CREATE TABLE `subscription_plans` (
   `id`               BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `name`             VARCHAR(50) NOT NULL,
