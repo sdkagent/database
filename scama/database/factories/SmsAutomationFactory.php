@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Sms\SmsAutomation;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Sms\SmsProvider;
+use App\Models\Sms\SmsTemplate;
+
 
 class SmsAutomationFactory extends Factory
 {

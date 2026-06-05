@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Inventory\StockCountItem;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Inventory\StockCount;
+use App\Models\Inventory\WarehouseLocation;
+use App\Models\Product\Product;
+
 
 class StockCountItemFactory extends Factory
 {

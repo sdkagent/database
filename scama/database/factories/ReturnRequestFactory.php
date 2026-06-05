@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Commerce\ReturnRequest;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Commerce\Order;
+use App\Models\Commerce\OrderItem;
+
 
 class ReturnRequestFactory extends Factory
 {

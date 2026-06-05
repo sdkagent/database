@@ -3,7 +3,13 @@
 namespace Database\Factories;
 
 use App\Models\Production\ProductionOrder;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Form\Routing;
+use App\Models\Inventory\Warehouse;
+use App\Models\Product\Product;
+use App\Models\Production\BillOfMaterial;
+
 
 class ProductionOrderFactory extends Factory
 {

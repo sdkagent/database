@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Procurement\QuotationItem;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Procurement\RfqItem;
+use App\Models\Procurement\SupplierQuotation;
+use App\Models\Product\Product;
+
 
 class QuotationItemFactory extends Factory
 {

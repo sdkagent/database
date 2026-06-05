@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Hr\JobPosition;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Hr\Department;
+
 
 class JobPositionFactory extends Factory
 {

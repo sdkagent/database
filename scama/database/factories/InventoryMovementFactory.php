@@ -3,7 +3,12 @@
 namespace Database\Factories;
 
 use App\Models\Inventory\InventoryMovement;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Inventory\StockItem;
+use App\Models\Inventory\WarehouseLocation;
+use App\Models\Product\Product;
+
 
 class InventoryMovementFactory extends Factory
 {

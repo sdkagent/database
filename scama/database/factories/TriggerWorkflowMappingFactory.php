@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\TriggerWorkflowMapping;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Workflow\Trigger;
+use App\Models\Workflow\WorkflowDefinition;
+
 
 class TriggerWorkflowMappingFactory extends Factory
 {

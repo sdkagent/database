@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Hr\Department;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+
 
 class DepartmentFactory extends Factory
 {

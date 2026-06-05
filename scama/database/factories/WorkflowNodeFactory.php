@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\WorkflowNode;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Workflow\WorkflowDefinition;
+
 
 class WorkflowNodeFactory extends Factory
 {

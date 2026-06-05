@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Procurement\Supplier;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Billing\Currency;
+
 
 class SupplierFactory extends Factory
 {

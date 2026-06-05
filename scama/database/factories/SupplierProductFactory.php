@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Procurement\SupplierProduct;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Procurement\Supplier;
+use App\Models\Product\Product;
+
 
 class SupplierProductFactory extends Factory
 {

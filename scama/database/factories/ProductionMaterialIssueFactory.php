@@ -3,7 +3,12 @@
 namespace Database\Factories;
 
 use App\Models\Production\ProductionMaterialIssue;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Inventory\StockItem;
+use App\Models\Inventory\WarehouseLocation;
+use App\Models\Product\Product;
+use App\Models\Production\ProductionOrder;
+
 
 class ProductionMaterialIssueFactory extends Factory
 {

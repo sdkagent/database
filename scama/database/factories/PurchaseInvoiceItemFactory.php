@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Procurement\PurchaseInvoiceItem;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Procurement\PurchaseInvoice;
+use App\Models\Procurement\PurchaseOrderItem;
+use App\Models\Product\Product;
+
 
 class PurchaseInvoiceItemFactory extends Factory
 {

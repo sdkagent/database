@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Logging\MaintenanceSchedule;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Production\WorkCenter;
+
 
 class MaintenanceScheduleFactory extends Factory
 {

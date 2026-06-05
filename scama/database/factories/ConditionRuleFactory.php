@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Pricing\ConditionRule;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Pricing\ConditionGroup;
+
 
 class ConditionRuleFactory extends Factory
 {

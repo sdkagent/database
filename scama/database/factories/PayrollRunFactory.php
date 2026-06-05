@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Hr\PayrollRun;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Accounting\AccountPeriod;
+use App\Models\Accounting\FiscalYear;
+use App\Models\Auth\User;
+
 
 class PayrollRunFactory extends Factory
 {

@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Inventory\ReorderRule;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Inventory\Warehouse;
+use App\Models\Product\Product;
+
 
 class ReorderRuleFactory extends Factory
 {

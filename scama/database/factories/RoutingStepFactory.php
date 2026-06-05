@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Form\RoutingStep;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Form\Routing;
+use App\Models\Production\WorkCenter;
+
 
 class RoutingStepFactory extends Factory
 {

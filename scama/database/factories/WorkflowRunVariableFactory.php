@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\WorkflowRunVariable;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Workflow\WorkflowRun;
+
 
 class WorkflowRunVariableFactory extends Factory
 {

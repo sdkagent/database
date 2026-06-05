@@ -3,7 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Inventory\TransferOrderItem;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Inventory\StockItem;
+use App\Models\Inventory\TransferOrder;
+use App\Models\Product\Product;
+
 
 class TransferOrderItemFactory extends Factory
 {

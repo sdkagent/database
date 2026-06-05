@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Procurement\RfqItem;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Procurement\Rfq;
+use App\Models\Product\Product;
+
 
 class RfqItemFactory extends Factory
 {

@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Hr\Timesheet;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Hr\Employee;
+
 
 class TimesheetFactory extends Factory
 {

@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Hr\EmployeeContract;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Billing\Currency;
+use App\Models\Hr\Employee;
+
 
 class EmployeeContractFactory extends Factory
 {

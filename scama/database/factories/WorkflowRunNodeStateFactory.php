@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\WorkflowRunNodeState;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Workflow\WorkflowNode;
+use App\Models\Workflow\WorkflowRun;
+
 
 class WorkflowRunNodeStateFactory extends Factory
 {

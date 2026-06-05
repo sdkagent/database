@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Auth\UserPaymentMethod;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Billing\PaymentGateway;
+
 
 class UserPaymentMethodFactory extends Factory
 {

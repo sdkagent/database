@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\ApprovalStage;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Workflow\ApprovalRequest;
+
 
 class ApprovalStageFactory extends Factory
 {

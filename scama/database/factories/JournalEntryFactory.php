@@ -3,7 +3,12 @@
 namespace Database\Factories;
 
 use App\Models\Accounting\JournalEntry;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Accounting\AccountPeriod;
+use App\Models\Accounting\FiscalYear;
+use App\Models\Accounting\JournalEntryType;
+use App\Models\Auth\User;
+
 
 class JournalEntryFactory extends Factory
 {

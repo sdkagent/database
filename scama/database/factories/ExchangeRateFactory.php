@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Billing\ExchangeRate;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Billing\Currency;
+
 
 class ExchangeRateFactory extends Factory
 {

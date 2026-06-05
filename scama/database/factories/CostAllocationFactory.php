@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Accounting\CostAllocation;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Accounting\ChartOfAccount;
+use App\Models\Accounting\CostCenter;
+
 
 class CostAllocationFactory extends Factory
 {

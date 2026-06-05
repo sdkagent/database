@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Inventory\WarehouseLocation;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Inventory\Warehouse;
+
 
 class WarehouseLocationFactory extends Factory
 {

@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Auth\UserAddress;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+
 
 class UserAddressFactory extends Factory
 {

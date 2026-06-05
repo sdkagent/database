@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Procurement\PurchaseReceipt;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Procurement\PurchaseOrder;
+
 
 class PurchaseReceiptFactory extends Factory
 {

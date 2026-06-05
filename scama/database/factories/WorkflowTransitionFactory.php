@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\WorkflowTransition;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Workflow\WorkflowDefinition;
+use App\Models\Workflow\WorkflowNode;
+
 
 class WorkflowTransitionFactory extends Factory
 {

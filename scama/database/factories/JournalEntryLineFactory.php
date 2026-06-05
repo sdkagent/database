@@ -3,7 +3,12 @@
 namespace Database\Factories;
 
 use App\Models\Accounting\JournalEntryLine;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Accounting\ChartOfAccount;
+use App\Models\Accounting\CostCenter;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\ProfitCenter;
+
 
 class JournalEntryLineFactory extends Factory
 {

@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Auth\PersonalAccessToken;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+
 
 class PersonalAccessTokenFactory extends Factory
 {

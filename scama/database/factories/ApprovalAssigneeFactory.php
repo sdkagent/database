@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Workflow\ApprovalAssignee;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Auth\User;
+use App\Models\Workflow\ApprovalStage;
+
 
 class ApprovalAssigneeFactory extends Factory
 {
